@@ -1,3 +1,5 @@
+"use server";
+
 import { auth } from '@repo/auth';
 import { client } from '@repo/db';
 import { headers } from 'next/headers';
