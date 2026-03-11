@@ -1,0 +1,20 @@
+import { z } from "zod";
+import dotenv from "dotenv";
+dotenv.config({ path: "../../.env" });
+
+export const ServerEnvSchema = z.object({
+    DATABASE_URL: z.string().url(),
+    BETTER_AUTH_SECRET: z.string(),
+    BETTER_AUTH_URL: z.string().url(),
+    GITHUB_CLIENT_ID: z.string(),
+    GITHUB_CLIENT_SECRET: z.string(),
+    REDIS_HOST: z.string(),
+    REDIS_PORT: z.coerce.number(),
+    GEMINI_API_KEY: z.string(),
+    SOCKET_PORT: z.coerce.number(),
+    WEB_APP_URL: z.string().url(),
+    BETTER_AUTH_CLIENT_URL: z.string().url(),
+});
+
+export type ServerEnv = z.infer<typeof ServerEnvSchema>;
+export const server_env = ServerEnvSchema.parse(process.env);
