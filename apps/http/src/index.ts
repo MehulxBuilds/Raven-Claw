@@ -4,6 +4,8 @@ import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import { auth } from "@repo/auth";
 import { server_env as env } from "@repo/env"
+import userRoutes from "./routes/user-routes.js";
+import postRoutes from "./routes/post-routes.js";
 
 const app = express();
 
@@ -29,6 +31,9 @@ app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(cookieParser());
 app.use(express.json());
+
+app.use("/api/v1/user", userRoutes);
+app.use("/api/v1/post", postRoutes);
 
 app.get("/api/me", async (req, res) => {
     const session = await auth.api.getSession({

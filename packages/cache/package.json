@@ -1,0 +1,26 @@
+{
+  "name": "@repo/cache",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "docker-compose up -d && tsc --watch",
+    "build": "tsc",
+    "lint": "eslint src"
+  },
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@repo/env": "workspace:*",
+    "ioredis": "^5.9.3"
+  }
+}

@@ -15,6 +15,9 @@
   "exports": {
     ".": {
       "default": "./src/index.ts"
+    },
+    "./data": {
+      "default": "./src/db-data.ts"
     }
   },
   "devDependencies": {

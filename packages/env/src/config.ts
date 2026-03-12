@@ -10,10 +10,15 @@ export const ServerEnvSchema = z.object({
     GITHUB_CLIENT_SECRET: z.string(),
     REDIS_HOST: z.string(),
     REDIS_PORT: z.coerce.number(),
+    REDIS_USERNAME: z.string().optional(),
+    REDIS_PASSWORD: z.string().optional(),
+    KAFKA_BROKER: z.string(),
+    KAFKA_SSL: z.string(),
     GEMINI_API_KEY: z.string(),
     SOCKET_PORT: z.coerce.number(),
     WEB_APP_URL: z.string().url(),
     BETTER_AUTH_CLIENT_URL: z.string().url(),
+    NODE_ENV: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;
