@@ -1,14 +1,13 @@
 import { Router } from "express";
 import type { Router as ExpressRouter } from "express";
-import { protect } from "../middleware/user-middleware";
-import { updateUserpreference } from "../controller/user-controller";
-import { scheduleCreatePost } from "../controller/post-controller";
+import { protect } from "../middleware/user-middleware.js";
+import { scheduleCreatePost } from "../controller/post-controller.js";
 
 const postRoutes: ExpressRouter = Router();
 
 postRoutes.use(protect);
 
 postRoutes.post('/schedule-create', scheduleCreatePost);
-postRoutes.post('/mark-')
+postRoutes.post('/mark-as-read', () => {});
 
 export default postRoutes;

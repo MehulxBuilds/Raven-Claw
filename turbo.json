@@ -21,6 +21,8 @@
         "GOOGLE_GEMINI_API_KEY",
         "NODE_ENV"
     ],
+    "$schema": "https://turbo.build/schema.json",
+    "concurrency": "20",
     "tasks": {
         "build": {
             "dependsOn": ["^build", "db:generate"],
