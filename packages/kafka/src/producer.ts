@@ -1,17 +1,12 @@
 import { kafka, TOPICS } from "./client";
 import type { Producer } from "kafkajs";
+import { MediaPost, PreferredPostTopic } from "@repo/db";
 
 export interface PostAutomateMessage {
     id: string,
-    creatorId: string,
-    caption?: string,
-    isLocked: boolean,
-    price?: Number,
-    createdAt: Date;
-    updatedAt: Date;
-    media_url?: string;
-    media_type?: string;
-    name: string;
+    query: string,
+    category: PreferredPostTopic,
+    mediaPosts: MediaPost,
 }
 export interface PostRawProcessorMessage {
     id: string,

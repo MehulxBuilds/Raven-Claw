@@ -18,6 +18,7 @@ export const ServerEnvSchema = z.object({
     SOCKET_PORT: z.coerce.number(),
     WEB_APP_URL: z.string().url(),
     BETTER_AUTH_CLIENT_URL: z.string().url(),
+    NODE_ENV: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;
