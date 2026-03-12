@@ -28,6 +28,7 @@ export const scheduleCreatePost = catchAsync(
                     query: data.query,
                     category: data.category,
                     mediaPosts: data.mediaPosts,
+                    postMadeBy: "MANNUAL",
                 });
             } else {
                 // check how much ( post ) generation's is there
@@ -46,6 +47,7 @@ export const scheduleCreatePost = catchAsync(
                         query: data.query,
                         category: data.category,
                         mediaPosts: data.mediaPosts,
+                        postMadeBy: "MANNUAL",
                     });
                 } else {
                     throw new AppError("Buy Premium for more Generation's", 400);

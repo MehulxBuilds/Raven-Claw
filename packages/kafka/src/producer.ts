@@ -1,12 +1,13 @@
 import { kafka, TOPICS } from "./client";
 import type { Producer } from "kafkajs";
-import { MediaPost, PreferredPostTopic } from "@repo/db";
+import { MediaPost, PostMadeByType, PreferredPostTopic } from "@repo/db";
 
 export interface PostAutomateMessage {
     id: string,
-    query: string,
-    category: PreferredPostTopic,
-    mediaPosts: MediaPost,
+    query?: string,
+    category: PreferredPostTopic | PreferredPostTopic[],
+    mediaPosts: MediaPost | MediaPost[],
+    postMadeBy: PostMadeByType
 }
 export interface PostRawProcessorMessage {
     id: string,
