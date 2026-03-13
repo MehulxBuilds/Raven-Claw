@@ -25,6 +25,7 @@ export const scheduleCreatePost = catchAsync(
             if (isPremium) {
                 const create = getProducer("automate").publishPost({
                     id: postId,
+                    userId: userId ?? "",
                     query: data.query,
                     category: data.category,
                     mediaPosts: data.mediaPosts,
@@ -44,6 +45,7 @@ export const scheduleCreatePost = catchAsync(
                 if (generationCheck?.generationCount !== 3) {
                     const create = getProducer("automate").publishPost({
                         id: postId,
+                        userId: userId ?? "",
                         query: data.query,
                         category: data.category,
                         mediaPosts: data.mediaPosts,
