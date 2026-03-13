@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react"
-import { GithubIcon } from "lucide-react"
+import { IconCategory, IconDeviceAnalytics, IconSettings, IconShoppingBagCheck, IconTemplate, type Icon } from "@tabler/icons-react";
 
 import {
     Sidebar,
@@ -27,22 +27,27 @@ const data = {
             url: "#",
             items: [
                 {
-                    title: "Dashboard",
+                    icon: IconCategory,
+                    title: "Threads",
                     url: "/dashboard",
                 },
                 {
-                    title: "Repository",
-                    url: "/dashboard/repository",
+                    icon: IconTemplate,
+                    title: "Features",
+                    url: "/dashboard/features",
                 },
                 {
-                    title: "Reviews",
-                    url: "/dashboard/reviews",
+                    icon: IconDeviceAnalytics,
+                    title: "Analytics",
+                    url: "/dashboard/analytics",
                 },
                 {
+                    icon: IconShoppingBagCheck,
                     title: "Subscription",
                     url: "/dashboard/subscription",
                 },
                 {
+                    icon: IconSettings,
                     title: "Settings",
                     url: "/dashboard/settings",
                 },
@@ -91,10 +96,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 </SidebarMenuButton>
                                 {item.items?.length ? (
                                     <SidebarMenuSub>
-                                        {item.items.map((item) => (
+                                        {item.items.map((item: { title: string, url: string, icon: Icon }) => (
                                             <SidebarMenuSubItem key={item.title}>
                                                 <SidebarMenuSubButton asChild isActive={currentPath.toLowerCase() === item.title.toLowerCase() ? true : false}>
-                                                    <a href={item.url}>{item.title}</a>
+                                                    <div>
+                                                        <item.icon /><a href={item.url}>{item.title}</a>
+                                                    </div>
                                                 </SidebarMenuSubButton>
                                             </SidebarMenuSubItem>
                                         ))}
