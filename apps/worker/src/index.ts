@@ -1,6 +1,7 @@
 import { getPostAutomateConsumer } from "./post-automate-consumer";
 import { getPostRawConsumer } from "./post-raw-consumer";
 import { getPostDumpConsumer } from "./post-dump-consumer";
+import { getPostCleanupConsumer } from "./post-cleanup-consumer";
 
 const LAG_CHECK_INTERVAL = 30000; // 30 seconds
 const HIGH_LAG_THRESHOLD = 1000;
@@ -15,6 +16,7 @@ const consumerGetters: (() => BaseConsumer)[] = [
     getPostAutomateConsumer,
     getPostRawConsumer,
     getPostDumpConsumer,
+    getPostCleanupConsumer
 ];
 
 let consumers: BaseConsumer[] = [];

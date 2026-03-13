@@ -4,6 +4,7 @@ import { MediaPost, PostMadeByType, PreferredPostTopic } from "@repo/db";
 
 export interface PostAutomateMessage {
     id: string,
+    userId: string,
     query?: string,
     category: PreferredPostTopic | PreferredPostTopic[],
     mediaPosts: MediaPost | MediaPost[],
@@ -30,6 +31,9 @@ export interface PostdumpMessage {
     updatedAt: Date;
     media_url?: string;
     media_type?: string;
+}
+export interface PostCleanUpMessage {
+    id: string, // postId -> which is going to be cleanedUp
 }
 
 export class PostAutomateProducer {
@@ -170,12 +174,59 @@ export class PostDumpProducer {
         }
     }
 }
+export class PostCleanUpProducer {
+    private producer: Producer;
+    private isConnected = false;
+
+    constructor() {
+        this.producer = kafka.producer();
+    }
+
+    async connect() {
+        if (!this.isConnected) {
+            await this.producer.connect();
+            this.isConnected = true;
+        }
+    }
+
+    async disconnect() {
+        if (this.isConnected) {
+            await this.producer.disconnect();
+            this.isConnected = false;
+        }
+    }
+
+    async publishPost(message: PostCleanUpMessage): Promise<string> {
+        await this.connect();
+
+        const topic = TOPICS.POST_CLEANUP;
+        const partitionKey = message.id;
+
+        try {
+            await this.producer.send({
+                topic,
+                messages: [
+                    {
+                        key: partitionKey,
+                        value: JSON.stringify(message),
+                    },
+                ],
+            });
+
+            return message?.id;
+        } catch (error) {
+            console.error("Failed to publish message:", error);
+            throw error;
+        }
+    }
+}
 
 // Singleton instance
 type ProducerMap = {
     dump: PostDumpProducer;
     raw: PostRawProducer;
     automate: PostAutomateProducer;
+    cleanup: PostCleanUpProducer;
 };
 
 const producers: Partial<ProducerMap> = {};
@@ -193,6 +244,9 @@ export function getProducer<T extends keyof ProducerMap>(
                 break;
             case "automate":
                 producers[type] = new PostAutomateProducer() as ProducerMap[T];
+                break;
+            case "cleanup":
+                producers[type] = new PostCleanUpProducer() as ProducerMap[T];
                 break;
         }
     }

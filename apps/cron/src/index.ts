@@ -1,25 +1,26 @@
 import cron from "node-cron";
-import { schedulePostService } from "./services/post-service";
+import { CleanupPostService, schedulePostService } from "./services/post-service";
 
 // A Cron for Scheduling Posts Creation.
-let postCronRunning = false;
+let postSchedukeCronRunning = false;
+let postCleanupCronRunning = false;
 
 cron.schedule(
     "0 */2 * * *",
     async () => {
-        if (postCronRunning) {
+        if (postSchedukeCronRunning) {
             console.log("Skipping cron run: job still running");
             return;
         }
 
         try {
-            postCronRunning = true;
+            postSchedukeCronRunning = true;
             console.log("Running post scheduler...");
             await schedulePostService();
         } catch (err) {
             console.error("Post scheduler failed:", err);
         } finally {
-            postCronRunning = false;
+            postSchedukeCronRunning = false;
         }
     },
     {
@@ -28,6 +29,27 @@ cron.schedule(
 );
 
 // A Cron for Scheduling Posts Cleanup.
+cron.schedule(
+    "0 2 * * *",
+    async () => {
+        if (postCleanupCronRunning) {
+            console.log("Skipping cron run: job still running");
+            return;
+        }
 
+        try {
+            postCleanupCronRunning = true;
+            console.log("Running post Cleanup...");
+            await CleanupPostService();
+        } catch (err) {
+            console.error("Post Cleanup failed:", err);
+        } finally {
+            postCleanupCronRunning = false;
+        }
+    },
+    {
+        timezone: "UTC"
+    }
+);
 
 console.log("Cron Server Running");

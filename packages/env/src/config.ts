@@ -14,11 +14,12 @@ export const ServerEnvSchema = z.object({
     REDIS_PASSWORD: z.string().optional(),
     KAFKA_BROKER: z.string(),
     KAFKA_SSL: z.string(),
-    GEMINI_API_KEY: z.string(),
     SOCKET_PORT: z.coerce.number(),
     WEB_APP_URL: z.string().url(),
     BETTER_AUTH_CLIENT_URL: z.string().url(),
     NODE_ENV: z.string().optional(),
+    GEMINI_API_KEY: z.string(),
+    OPENROUTER_API_KEY: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;

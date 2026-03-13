@@ -16,6 +16,7 @@ export const TOPICS = {
     POST_RAW_PROCESSOR: "post-raw",
     POST_AUTOMATE: "post-automate",
     POST_DUMP: "post-dump",
+    POST_CLEANUP: "post-cleanup",
 } as const;
 
 // Topic configurations
@@ -29,6 +30,10 @@ export const TOPIC_CONFIGS = {
         replicationFactor: 1,
     },
     [TOPICS.POST_DUMP]: {
+        numPartitions: 1,
+        replicationFactor: 1,
+    },
+    [TOPICS.POST_CLEANUP]: {
         numPartitions: 1,
         replicationFactor: 1,
     },
