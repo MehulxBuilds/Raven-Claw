@@ -47,6 +47,7 @@ export * from "./ui/toggle";
 export * from "./ui/toggle-group";
 export * from "./ui/tooltip";
 export * from "./ui/hint";
+export * from "./ui/field";
 
 // Export utils
 export * from "./utils";

@@ -28,7 +28,7 @@ export const UpdateUserPreference = z.object({
 });
 
 export const SchedulePostSchema = z.object({
-    query: z.string().min(5).max(200),
+    query: z.string().min(5).max(200).optional(),
     category: z.nativeEnum(PreferredPostTopic),
     mediaPosts: z.nativeEnum(MediaPost),
 });
