@@ -2,8 +2,9 @@
 
 import { auth } from '@repo/auth';
 import { client } from '@repo/db';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { API_BASE } from './constants';
 
 export const requireAuth = async () => {
     const session = await auth.api.getSession({
@@ -58,3 +59,23 @@ export const currentUser = async () => {
 
     return user;
 }
+
+export const getDBUser = async () => {
+    const cookieStore = await cookies();
+
+    const response = await fetch(`${API_BASE}/api/v1/user/fetch-user`, {
+        method: "GET",
+        headers: {
+            Cookie: cookieStore.toString(),
+        },
+        cache: "no-store",
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to fetch user");
+    }
+
+    const result = await response.json();
+
+    return result.user || [];
+};
