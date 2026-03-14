@@ -74,6 +74,7 @@ export const scheduleCreatePost = catchAsync(
 export const fetchPosts = catchAsync(
     async (req: AuthRequest, res: Response) => {
         const userId = req.userId;
+        console.log(userId)
         const feedCacheKey = `feed:user${userId}:initial`;
 
         try {
@@ -112,9 +113,9 @@ export const fetchPosts = catchAsync(
                 await postCache.addPost(feedCacheKey, feedpost);
             }
 
-            if (!feedpost) {
-                throw new AppError("Failed to fetch post", 400);
-            }
+            // if (!feedpost) {
+            //     throw new AppError("Failed to fetch post", 400);
+            // }
 
             res.status(200).json({
                 success: true,

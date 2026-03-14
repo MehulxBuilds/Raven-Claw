@@ -9,6 +9,6 @@ postRoutes.use(protect);
 
 postRoutes.post('/schedule-create', scheduleCreatePost);
 postRoutes.post('/mark-as-read', () => {});
-postRoutes.get('/fetch', fetchPosts);
+postRoutes.get('/feed', fetchPosts);
 
 export default postRoutes;

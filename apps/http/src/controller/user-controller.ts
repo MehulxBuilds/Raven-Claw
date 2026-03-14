@@ -41,3 +41,40 @@ export const updateUserpreference = catchAsync(
         }
     }
 );
+
+export const getDBUser = catchAsync(
+    async (req: AuthRequest, res: Response) => {
+        try {
+            const userId = req.userId;
+
+            const user = await client.user.findFirst({
+                where: {
+                    id: userId,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                    preferredPostMedia: true,
+                    preferredPostTopics: true,
+                }
+            });
+
+            if (!user) {
+                throw new AppError("failed to fetch user", 400);
+            }
+
+            res.status(200).json({
+                success: true,
+                message: "User Fetched Successfully",
+                user: user,
+            });
+        } catch (e) {
+            console.error(`Error: ${e}`);
+            res.status(500).json({
+                success: false,
+                message: "Internal Server Error", e,
+            });
+        }
+    }
+);
