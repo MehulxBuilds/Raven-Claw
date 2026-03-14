@@ -28,3 +28,9 @@ export interface OnboardingType {
     preferredPostMedia: MediaPost[],
     preferredPostTopics: PreferredPostTopic[],
 };
+
+export interface CreatePostType {
+    query: string,
+    category: PreferredPostTopic,
+    mediaPosts: MediaPost,
+};

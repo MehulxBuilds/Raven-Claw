@@ -59,7 +59,7 @@ export const scheduleCreatePost = catchAsync(
 
             res.status(200).json({
                 success: true,
-                message: "Post Creation has been Scheduled Successfully",
+                message: "Post Creation has been Scheduled Successfully, Your Post will be ready After few minutes :)",
             });
         } catch (e) {
             console.error(`Error: ${e}`);
@@ -74,7 +74,6 @@ export const scheduleCreatePost = catchAsync(
 export const fetchPosts = catchAsync(
     async (req: AuthRequest, res: Response) => {
         const userId = req.userId;
-        console.log(userId)
         const feedCacheKey = `feed:user${userId}:initial`;
 
         try {

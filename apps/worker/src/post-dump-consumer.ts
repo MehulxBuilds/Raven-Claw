@@ -2,6 +2,7 @@ import { kafka, TOPICS, getProducer } from "@repo/kafka";
 import { client } from "@repo/db";
 import { getPostCache } from "@repo/cache";
 import type { Consumer, EachBatchPayload, PostdumpMessage } from "@repo/kafka";
+import { Decimal } from "@repo/db";
 
 export class PostDumpConsumer {
     private consumer: Consumer;
@@ -9,7 +10,7 @@ export class PostDumpConsumer {
 
     constructor() {
         this.consumer = kafka.consumer({
-            groupId: "post-dump-group", // separate consumer group
+            groupId: "post-dump-group",
         });
     }
 
@@ -34,7 +35,7 @@ export class PostDumpConsumer {
                     isRunning,
                 }: EachBatchPayload) => {
                     const messages = batch.messages;
-                    const batchSize = 500;
+                    const batchSize = 50;
                     const flushInterval = 3000;
 
                     console.log(
@@ -111,66 +112,99 @@ export class PostDumpConsumer {
     ) {
         if (messages.length === 0) return;
 
-        console.log(`⚡ PostDumpConsumer processing batch of ${messages.length} items...`);
+        console.log(`⚡ PostDumpConsumer processing batch of ${messages.length} AI posts...`);
         const startTime = Date.now();
 
-        const posts = messages.map((msg) => ({
-            id: msg.id,
-            creatorId: msg.creatorId,
-            caption: msg.caption,
-            isLocked: msg.isLocked,
-            price: msg.price,
-            createdAt: msg.createdAt,
-            updatedAt: msg.updatedAt,
-            media_url: msg.media_url,
-            media_type: msg.media_type,
-        }));
-
         try {
+            // Filter out posts with duplicate hashes
+            const uniqueMessages = messages.filter((msg, index, self) =>
+                msg.hash ? self.findIndex(m => m.hash === msg.hash) === index : true
+            );
 
-            // have cache first
-            const duration = Date.now() - startTime;
-            console.log(`✅ Post batch persisted: ${posts.length} posts (${duration}ms)`);
+            // Check for existing hashes in database
+            const existingHashes = await client.aIPosts.findMany({
+                where: {
+                    hash: {
+                        in: uniqueMessages.filter(m => m.hash).map(m => m.hash!),
+                    },
+                },
+                select: { hash: true },
+            });
 
-            const postCache = getPostCache();
-            const invalidatedKeys = new Set<string>();
+            const existingHashSet = new Set(existingHashes.map(h => h.hash));
+            const newMessages = uniqueMessages.filter(m => !m.hash || !existingHashSet.has(m.hash));
 
-            for (const msg of posts) {
-                // Invalidate the creator's profile posts cache
-                const key = `creator:${msg?.creatorId}:posts:initial`;
-                if (!invalidatedKeys.has(key)) {
-                    await postCache.invalidatePost(key);
-                    invalidatedKeys.add(key);
-                }
+            if (newMessages.length === 0) {
+                console.log("⚠️ All posts already exist in database, skipping...");
+                return;
             }
 
-            // Invalidate feed caches for users so they see fresh posts
-            await postCache.invalidateByPattern("feed:*:initial");
-
-
-            // Then push to db
+            // Batch create AI posts
             await client.$transaction(
-                messages.map((msg) =>
-                    client.post.create({
+                newMessages.map((msg) =>
+                    client.aIPosts.create({
                         data: {
-                            caption: msg.caption,
-                            isLocked: msg.isLocked,
-                            creatorId: msg.creatorId,
-                            price: msg.price,
-                            media: {
-                                create: {
-                                    url: msg.media_url!,
-                                    type: msg.media_type as any,
-                                }
-                            }
+                            mediaPosts: msg.mediaPosts,
+                            postTopics: msg.postTopics,
+                            postMadeBy: msg.postMadeBy,
+                            title: msg.title,
+                            content: msg.content,
+                            source: msg.source,
+                            sourceUrl: msg.sourceUrl,
+                            trendScore: msg.trendScore ? new Decimal(msg.trendScore) : null,
+                            engagementScore: msg.engagementScore,
+                            commentCount: msg.commentCount,
+                            tokensConsumed: msg.tokensConsumed ? new Decimal(msg.tokensConsumed) : null,
+                            hash: msg.hash,
+                            status: "PENDING",
+                            userId: msg.userId,
                         },
                     })
                 )
             );
 
+            // Update user usage
+            const userTokenUpdates = new Map<string, number>();
+            for (const msg of newMessages) {
+                if (msg.tokensConsumed) {
+                    const current = userTokenUpdates.get(msg.userId) || 0;
+                    userTokenUpdates.set(msg.userId, current + msg.tokensConsumed);
+                }
+            }
+
+            for (const [userId, tokens] of userTokenUpdates) {
+                await client.userUsage.upsert({
+                    where: { userId },
+                    create: {
+                        userId,
+                        TotalTokenConsumed: new Decimal(tokens),
+                        dailyTokenConsumed: new Decimal(tokens),
+                        generationCount: 1,
+                    },
+                    update: {
+                        TotalTokenConsumed: { increment: tokens },
+                        dailyTokenConsumed: { increment: tokens },
+                        generationCount: { increment: 1 },
+                    },
+                });
+            }
+
+            // Invalidate feed cache for affected users
+            const postCache = getPostCache();
+            const affectedUserIds = new Set(newMessages.map(m => m.userId));
+            
+            for (const userId of affectedUserIds) {
+                const cacheKey = `feed:user${userId}:initial`;
+                await postCache.invalidatePost(cacheKey);
+                console.log(`🗑️ Invalidated feed cache for user ${userId}`);
+            }
+
+            const duration = Date.now() - startTime;
+            console.log(`✅ Saved ${newMessages.length} AI posts to database (${duration}ms)`);
+
         } catch (e) {
             console.error(
-                "❌ Post database batch write failed. Initiating recovery...",
+                "❌ AI Post database batch write failed. Initiating recovery...",
                 e,
             );
 
