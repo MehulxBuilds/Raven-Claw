@@ -1,7 +1,7 @@
 import { kafka, TOPICS, getProducer } from "@repo/kafka";
-import { client } from "@repo/db";
-import { getPostCache } from "@repo/cache";
-import type { Consumer, EachBatchPayload, PostRawProcessorMessage } from "@repo/kafka";
+import type { Consumer, EachBatchPayload, PostRawProcessorMessage, PostdumpMessage } from "@repo/kafka";
+import type { MediaPost } from "@repo/db";
+import { runPostGeneratorGraph, generatePostHash } from "./langgraph";
 
 export class PostRawConsumer {
     private consumer: Consumer;
@@ -9,7 +9,7 @@ export class PostRawConsumer {
 
     constructor() {
         this.consumer = kafka.consumer({
-            groupId: "post-raw-group", // separate consumer group
+            groupId: "post-raw-group",
         });
     }
 
@@ -34,8 +34,8 @@ export class PostRawConsumer {
                     isRunning,
                 }: EachBatchPayload) => {
                     const messages = batch.messages;
-                    const batchSize = 500;
-                    const flushInterval = 3000;
+                    const batchSize = 5; // Small batch due to AI processing
+                    const flushInterval = 10000;
 
                     console.log(
                         `PostRawConsumer received ${messages.length} messages from Kafka`,
@@ -114,84 +114,81 @@ export class PostRawConsumer {
         console.log(`⚡ PostRawConsumer processing batch of ${messages.length} items...`);
         const startTime = Date.now();
 
-        const posts = messages.map((msg) => ({
-            id: msg.id,
-            creatorId: msg.creatorId,
-            caption: msg.caption,
-            isLocked: msg.isLocked,
-            price: msg.price,
-            createdAt: msg.createdAt,
-            updatedAt: msg.updatedAt,
-            media_url: msg.media_url,
-            media_type: msg.media_type,
-        }));
+        const dumpProducer = getProducer("dump");
 
-        try {
-
-            // have cache first
-            const duration = Date.now() - startTime;
-            console.log(`✅ Post batch persisted: ${posts.length} posts (${duration}ms)`);
-
-            const postCache = getPostCache();
-            const invalidatedKeys = new Set<string>();
-
-            for (const msg of posts) {
-                // Invalidate the creator's profile posts cache
-                const key = `creator:${msg?.creatorId}:posts:initial`;
-                if (!invalidatedKeys.has(key)) {
-                    await postCache.invalidatePost(key);
-                    invalidatedKeys.add(key);
-                }
-            }
-
-            // Invalidate feed caches for users so they see fresh posts
-            await postCache.invalidateByPattern("feed:*:initial");
-
-
-            // Then push to db
-            await client.$transaction(
-                messages.map((msg) =>
-                    client.post.create({
-                        data: {
-                            caption: msg.caption,
-                            isLocked: msg.isLocked,
-                            creatorId: msg.creatorId,
-                            price: msg.price,
-                            media: {
-                                create: {
-                                    url: msg.media_url!,
-                                    type: msg.media_type as any,
-                                }
-                            }
-                        },
-                    })
-                )
-            );
-
-        } catch (e) {
-            console.error(
-                "❌ Post database batch write failed. Initiating recovery...",
-                e,
-            );
-
-            const producer = getProducer("raw");
+        for (const msg of messages) {
             try {
-                for (const msg of messages) {
-                    const originalMessage = { ...msg };
-                    // @ts-expect-error - remove offset before re-publishing
-                    delete originalMessage.offset;
-                    await producer.publishPost(originalMessage);
+                console.log(`🤖 Running LangGraph for user ${msg.userId}, category: ${msg.category}`);
+
+                // Run the LangGraph workflow to generate 2 AI posts
+                const result = await runPostGeneratorGraph({
+                    userId: msg.userId,
+                    category: msg.category,
+                    mediaPosts: msg.mediaPosts,
+                    postMadeBy: msg.postMadeBy,
+                    trends: msg.trends,
+                    query: msg.query,
+                });
+
+                if (result.errors.length > 0) {
+                    console.warn(`⚠️ Post generation had errors:`, result.errors);
                 }
-                console.log(
-                    `🔄 Post recovery: Re-queued ${messages.length} messages to Kafka topic.`,
-                );
-            } catch (produceError) {
-                console.error(
-                    "🔥 CRITICAL: Failed to re-queue post messages! Data loss possible.",
-                    produceError,
-                );
+
+                if (result.posts.length === 0) {
+                    console.warn(`⚠️ No posts generated for message ${msg.id}`);
+                    continue;
+                }
+
+                console.log(`✅ Generated ${result.posts.length} posts, tokens consumed: ${result.tokensConsumed}`);
+
+                // Push each generated post to the dump consumer
+                for (const post of result.posts) {
+                    const hash = generatePostHash(post, msg.userId);
+
+                    const dumpMessage: PostdumpMessage = {
+                        id: `${msg.id}-${hash.substring(0, 8)}`,
+                        userId: msg.userId,
+                        mediaPosts: post.platform,
+                        postTopics: msg.category,
+                        postMadeBy: msg.postMadeBy,
+                        title: post.title,
+                        content: {
+                            text: post.content,
+                            hashtags: post.hashtags,
+                            tone: post.tone,
+                        },
+                        source: post.source,
+                        sourceUrl: post.sourceUrl,
+                        trendScore: msg.trends[0]?.score,
+                        engagementScore: msg.trends[0]?.engagementScore,
+                        commentCount: msg.trends[0]?.commentCount,
+                        tokensConsumed: result.tokensConsumed / result.posts.length,
+                        hash,
+                    };
+
+                    await dumpProducer.publishPost(dumpMessage);
+                    console.log(`📤 Pushed generated post to dump queue: ${post.title.substring(0, 50)}...`);
+                }
+
+            } catch (error) {
+                console.error(`❌ Failed to process raw message ${msg.id}:`, error);
+
+                // Re-queue failed message
+                const rawProducer = getProducer("raw");
+                try {
+                    const retryMsg = { ...msg };
+                    // @ts-expect-error - remove offset before re-publishing
+                    delete retryMsg.offset;
+                    await rawProducer.publishPost(retryMsg);
+                    console.log(`🔄 Re-queued message ${msg.id} for retry`);
+                } catch (requeueError) {
+                    console.error(`🔥 CRITICAL: Failed to re-queue message ${msg.id}:`, requeueError);
+                }
             }
         }
+
+        const duration = Date.now() - startTime;
+        console.log(`✅ PostRawConsumer batch processed in ${duration}ms`);
     }
 
     async getLag(): Promise<number> {

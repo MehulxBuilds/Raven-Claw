@@ -1,36 +1,64 @@
 import { kafka, TOPICS } from "./client";
 import type { Producer } from "kafkajs";
-import { MediaPost, PostMadeByType, PreferredPostTopic } from "@repo/db";
+import { MediaPost, PostMadeByType, PreferredPostTopic, TrendSource } from "@repo/db";
 
 export interface PostAutomateMessage {
-    id: string,
-    userId: string,
-    query?: string,
-    category: PreferredPostTopic | PreferredPostTopic[],
-    mediaPosts: MediaPost | MediaPost[],
-    postMadeBy: PostMadeByType
+    id: string;
+    userId: string;
+    query?: string; // The topic/query to generate posts about (required)
+    // Optional: if not provided, user's preferredPostTopics from DB will be used
+    category?: PreferredPostTopic | PreferredPostTopic[];
+    // Optional: if not provided, user's preferredPostMedia from DB will be used
+    mediaPosts?: MediaPost | MediaPost[];
+    postMadeBy: PostMadeByType;
 }
+
+export interface TrendDataItem {
+    id: string;
+    title: string;
+    description?: string;
+    url?: string;
+    source: TrendSource;
+    score: number;
+    engagementScore: number;
+    commentCount: number;
+    createdAt: Date;
+    category: PreferredPostTopic;
+}
+
 export interface PostRawProcessorMessage {
-    id: string,
-    creatorId: string,
-    caption?: string,
-    isLocked: boolean,
-    price?: Number,
-    createdAt: Date;
-    updatedAt: Date;
-    media_url?: string;
-    media_type?: string;
+    id: string;
+    userId: string;
+    category: PreferredPostTopic;
+    mediaPosts: MediaPost | MediaPost[];
+    postMadeBy: PostMadeByType;
+    trends: TrendDataItem[];
+    fetchedAt: Date;
+    query?: string;
 }
+
+export interface GeneratedPost {
+    title: string;
+    content: string;
+    hashtags?: string[];
+    tone?: string;
+}
+
 export interface PostdumpMessage {
-    id: string,
-    creatorId: string,
-    caption?: string,
-    isLocked: boolean,
-    price?: Number,
-    createdAt: Date;
-    updatedAt: Date;
-    media_url?: string;
-    media_type?: string;
+    id: string;
+    userId: string;
+    mediaPosts: MediaPost;
+    postTopics: PreferredPostTopic;
+    postMadeBy: PostMadeByType;
+    title: string;
+    content: Record<string, any>;
+    source?: TrendSource;
+    sourceUrl?: string;
+    trendScore?: number;
+    engagementScore?: number;
+    commentCount?: number;
+    tokensConsumed?: number;
+    hash?: string;
 }
 export interface PostCleanUpMessage {
     id: string, // postId -> which is going to be cleanedUp

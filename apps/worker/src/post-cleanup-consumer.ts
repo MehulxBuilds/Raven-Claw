@@ -1,6 +1,5 @@
 import { kafka, TOPICS, getProducer } from "@repo/kafka";
 import { client } from "@repo/db";
-import { getPostCache } from "@repo/cache";
 import type { Consumer, EachBatchPayload, PostCleanUpMessage } from "@repo/kafka";
 
 export class PostCleanupConsumer {
@@ -112,61 +111,17 @@ export class PostCleanupConsumer {
         if (messages.length === 0) return;
 
         console.log(`⚡ PostCleanupConsumer processing batch of ${messages.length} items...`);
-        const startTime = Date.now();
-
-        const posts = messages.map((msg) => ({
-            id: msg.id,
-            creatorId: msg.creatorId,
-            caption: msg.caption,
-            isLocked: msg.isLocked,
-            price: msg.price,
-            createdAt: msg.createdAt,
-            updatedAt: msg.updatedAt,
-            media_url: msg.media_url,
-            media_type: msg.media_type,
-        }));
 
         try {
 
-            // have cache first
-            const duration = Date.now() - startTime;
-            console.log(`✅ Post batch persisted: ${posts.length} posts (${duration}ms)`);
-
-            const postCache = getPostCache();
-            const invalidatedKeys = new Set<string>();
-
-            for (const msg of posts) {
-                // Invalidate the creator's profile posts cache
-                const key = `creator:${msg?.creatorId}:posts:initial`;
-                if (!invalidatedKeys.has(key)) {
-                    await postCache.invalidatePost(key);
-                    invalidatedKeys.add(key);
-                }
-            }
-
-            // Invalidate feed caches for users so they see fresh posts
-            await postCache.invalidateByPattern("feed:*:initial");
-
-
             // Then push to db
-            await client.$transaction(
-                messages.map((msg) =>
-                    client.post.create({
-                        data: {
-                            caption: msg.caption,
-                            isLocked: msg.isLocked,
-                            creatorId: msg.creatorId,
-                            price: msg.price,
-                            media: {
-                                create: {
-                                    url: msg.media_url!,
-                                    type: msg.media_type as any,
-                                }
-                            }
-                        },
-                    })
-                )
-            );
+            await client.aIPosts.deleteMany({
+                where: {
+                    id: {
+                        in: messages.map(m => m.id)
+                    }
+                }
+            });
 
         } catch (e) {
             console.error(

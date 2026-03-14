@@ -9,12 +9,18 @@
         "start": "bun src/index.ts"
     },
     "dependencies": {
-        "@repo/db": "workspace:*",
-        "@repo/kafka": "workspace:*",
+        "@langchain/langgraph": "^1.2.2",
+        "@repo/ai-service": "workspace:*",
         "@repo/cache": "workspace:*",
-        "dotenv": "^16.4.5"
+        "@repo/db": "workspace:*",
+        "@repo/env": "workspace:*",
+        "@repo/kafka": "workspace:*",
+        "dotenv": "^16.4.5",
+        "google-trends-api": "^4.9.2",
+        "uuid": "^10.0.0"
     },
     "devDependencies": {
+        "@types/uuid": "^10.0.0",
         "tsc-watch": "^6.2.0",
         "typescript": "^5",
         "@types/node": "^22.0.0"
