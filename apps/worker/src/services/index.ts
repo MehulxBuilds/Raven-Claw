@@ -23,6 +23,33 @@ export interface AggregatedTrendData {
     query?: string;
 }
 
+function calculateRelevanceScore(title: string, description: string | undefined, query: string): number {
+    if (!query) return 0;
+    
+    const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+    const titleLower = title.toLowerCase();
+    const descLower = (description || "").toLowerCase();
+    
+    let relevance = 0;
+    let matchedTerms = 0;
+    
+    for (const term of queryTerms) {
+        if (titleLower.includes(term)) {
+            relevance += 0.4;
+            matchedTerms++;
+        }
+        if (descLower.includes(term)) {
+            relevance += 0.15;
+        }
+    }
+    
+    // Bonus for matching multiple terms
+    if (matchedTerms >= 2) relevance += 0.2;
+    if (matchedTerms >= 3) relevance += 0.2;
+    
+    return Math.min(relevance, 1);
+}
+
 export async function gatherTrendData(
     topic: PreferredPostTopic,
     customQuery?: string,
@@ -35,7 +62,7 @@ export async function gatherTrendData(
 
     console.log(`📊 Gathering trend data for topic: ${topic}${customQuery ? ` (query: ${customQuery})` : ""}`);
 
-    // Fetch from all sources in parallel
+    // Fetch from all sources in parallel - pass customQuery to all services
     const [hnResults, newsResults, redditResults, trendsResults] = await Promise.allSettled([
         customQuery 
             ? hnService.searchByQuery(customQuery, limitPerSource).then(stories => 
@@ -54,8 +81,8 @@ export async function gatherTrendData(
               )
             : hnService.searchByTopic(topic, limitPerSource),
         newsService.searchByTopic(topic, customQuery, limitPerSource),
-        redditService.searchByTopic(topic, limitPerSource),
-        trendsService.searchByTopic(topic, limitPerSource),
+        redditService.searchByTopic(topic, limitPerSource, customQuery),
+        trendsService.searchByTopic(topic, limitPerSource, customQuery),
     ]);
 
     const hackerNews = hnResults.status === "fulfilled" ? hnResults.value : [];
@@ -69,9 +96,36 @@ export async function gatherTrendData(
     if (redditResults.status === "rejected") console.error("Reddit fetch failed:", redditResults.reason);
     if (trendsResults.status === "rejected") console.error("Google Trends fetch failed:", trendsResults.reason);
 
-    // Combine all trends and sort by score
-    const allTrends = [...hackerNews, ...newsApi, ...reddit, ...googleTrends]
-        .sort((a, b) => b.score - a.score);
+    // Combine all trends
+    let allTrends = [...hackerNews, ...newsApi, ...reddit, ...googleTrends];
+
+    // Apply relevance scoring if custom query provided
+    if (customQuery) {
+        allTrends = allTrends.map(trend => {
+            const relevance = calculateRelevanceScore(trend.title, trend.description, customQuery);
+            return {
+                ...trend,
+                // Combine base score with relevance (70% relevance, 30% engagement when query present)
+                score: relevance > 0 
+                    ? (relevance * 0.7) + (trend.score * 0.3)
+                    : trend.score * 0.3, // Heavily penalize non-matching results
+            };
+        });
+
+        // Filter out completely irrelevant results when query is specific
+        const relevantTrends = allTrends.filter(t => {
+            const relevance = calculateRelevanceScore(t.title, t.description, customQuery);
+            return relevance > 0;
+        });
+
+        // Use relevant trends if we have enough, otherwise fall back to all
+        if (relevantTrends.length >= 3) {
+            allTrends = relevantTrends;
+        }
+    }
+
+    // Sort by score (now includes relevance weighting)
+    allTrends.sort((a, b) => b.score - a.score);
 
     console.log(`✅ Gathered ${allTrends.length} trends (HN: ${hackerNews.length}, News: ${newsApi.length}, Reddit: ${reddit.length}, Trends: ${googleTrends.length})`);
 

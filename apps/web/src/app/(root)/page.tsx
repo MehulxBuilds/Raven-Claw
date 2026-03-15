@@ -1,4 +1,5 @@
 import { ArrowRight, Clock3, ShieldCheck, Sparkles } from "lucide-react";
+import Link from "next/link";
 
 const metrics = [
   { value: "48h", label: "Average match time" },
@@ -72,7 +73,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="text-lg font-semibold tracking-[-0.03em]">RavenClaw</p>
-                  <p className="text-xs tracking-[0.16em] text-white/55 uppercase">Premium digital execution</p>
+                  <p className="text-xs tracking-[0.16em] text-white/55 uppercase">Automate Your Shit</p>
                 </div>
               </div>
 
@@ -86,12 +87,12 @@ export default function Home() {
                 <a href="#faq" className="transition hover:text-white">
                   FAQ
                 </a>
-                <a
-                  href="#contact"
+                <Link
+                  href="/dashboard/threads"
                   className="rounded-full border border-white/10 bg-white/8 px-4 py-2 text-white transition hover:border-white/20 hover:bg-white/12"
                 >
                   Get started
-                </a>
+                </Link>
               </nav>
             </header>
 
@@ -111,22 +112,22 @@ export default function Home() {
                 <span className="inline-flex items-center rounded-full border border-[#7a6dff]/30 bg-[#4F41B9]/15 px-4 py-1 text-xs font-medium tracking-[0.28em] text-[#c8c2ff] uppercase">
                   Design-led delivery
                 </span>
-                <h1 className="mt-8 max-w-4xl text-5xl font-semibold tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
-                  Launch standout digital experiences without the hiring chaos
+                <h1 className="mt-8 max-w-4xl text-5xl font-semibold tracking-[-0.05em] text-white sm:text-6xl lg:text-6xl">
+                  Get Latest Story Telling Posts Without Clicking Anything
                 </h1>
-                <p className="mt-6 max-w-2xl text-base leading-8 tracking-[-0.01em] text-white/68 sm:text-lg">
+                <p className="mt-6 max-w-2xl text-[16px] leading-8 tracking-[-0.01em] text-white/68 sm:text-lg">
                   RavenClaw helps teams move from idea to polished execution with sharp design,
                   fast delivery, and a workflow built for modern products.
                 </p>
 
                 <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
-                  <a
-                    href="#contact"
+                  <Link
+                    href="/dashboard/threads"
                     className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#130f32] transition hover:scale-[1.02]"
                   >
-                    Start your project
+                    Start To Automate
                     <ArrowRight className="h-4 w-4" />
-                  </a>
+                  </Link>
                   <a
                     href="#faq"
                     className="inline-flex items-center rounded-full border border-white/14 bg-white/6 px-6 py-3 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"

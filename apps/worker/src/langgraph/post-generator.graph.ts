@@ -25,6 +25,32 @@ const StateAnnotation = Annotation.Root({
 
 type GraphState = typeof StateAnnotation.State;
 
+function calculateQueryRelevance(title: string, description: string | undefined, query: string | undefined): number {
+    if (!query) return 0;
+    
+    const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+    const titleLower = title.toLowerCase();
+    const descLower = (description || "").toLowerCase();
+    
+    let relevance = 0;
+    let matchedTerms = 0;
+    
+    for (const term of queryTerms) {
+        if (titleLower.includes(term)) {
+            relevance += 0.4;
+            matchedTerms++;
+        }
+        if (descLower.includes(term)) {
+            relevance += 0.15;
+        }
+    }
+    
+    // Bonus for matching multiple terms
+    if (matchedTerms >= 2) relevance += 0.3;
+    
+    return Math.min(relevance, 1);
+}
+
 async function analyzeTrends(state: GraphState): Promise<Partial<GraphState>> {
     console.log("🔍 Analyzing trends...");
 
@@ -38,14 +64,22 @@ async function analyzeTrends(state: GraphState): Promise<Partial<GraphState>> {
         };
     }
 
-    // Sort by engagement and score, take top 5
+    // Sort by relevance (if query provided) + engagement score
     const sortedTrends = [...trends]
-        .sort((a, b) => {
-            const scoreA = a.score * 0.4 + (a.engagementScore / 10000) * 0.6;
-            const scoreB = b.score * 0.4 + (b.engagementScore / 10000) * 0.6;
-            return scoreB - scoreA;
+        .map(trend => {
+            const queryRelevance = calculateQueryRelevance(trend.title, trend.description, query);
+            const engagementNorm = Math.min(trend.engagementScore / 10000, 1);
+            
+            // When query is provided, prioritize relevance heavily
+            const combinedScore = query
+                ? (queryRelevance * 0.7) + (trend.score * 0.2) + (engagementNorm * 0.1)
+                : (trend.score * 0.4) + (engagementNorm * 0.6);
+            
+            return { trend, combinedScore, queryRelevance };
         })
-        .slice(0, 5);
+        .sort((a, b) => b.combinedScore - a.combinedScore)
+        .slice(0, 5)
+        .map(t => t.trend);
 
     const trendSummary = sortedTrends
         .map((t, i) => `${i + 1}. "${t.title}" (${t.source}, score: ${t.score.toFixed(2)}, engagement: ${t.engagementScore})`)

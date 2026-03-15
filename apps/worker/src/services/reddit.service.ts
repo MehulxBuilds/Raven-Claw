@@ -96,10 +96,43 @@ export class RedditService {
         }
     }
 
-    async searchByTopic(topic: PreferredPostTopic, limit = 10): Promise<TrendData[]> {
+    async searchByQuery(query: string, limit = 10): Promise<RedditPost[]> {
+        const url = `${this.baseUrl}/search.json?q=${encodeURIComponent(query)}&sort=relevance&t=week&limit=${limit}`;
+
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    "User-Agent": this.userAgent,
+                },
+            });
+
+            if (!response.ok) {
+                if (response.status === 429) {
+                    console.warn(`Reddit rate limited for search: ${query}`);
+                    return [];
+                }
+                throw new Error(`Reddit API error: ${response.status}`);
+            }
+
+            const data = (await response.json()) as RedditListingResponse;
+            return data.data.children.map(child => child.data);
+        } catch (error) {
+            console.error(`Failed to search Reddit for "${query}":`, error);
+            return [];
+        }
+    }
+
+    async searchByTopic(topic: PreferredPostTopic, limit = 10, customQuery?: string): Promise<TrendData[]> {
         const subreddits = TOPIC_TO_SUBREDDITS[topic] || ["all"];
         const allPosts: RedditPost[] = [];
 
+        // If custom query provided, use Reddit search API for better relevance
+        if (customQuery) {
+            const searchPosts = await this.searchByQuery(customQuery, limit);
+            allPosts.push(...searchPosts);
+        }
+
+        // Also fetch from topic subreddits
         const postsPerSubreddit = Math.ceil(limit / subreddits.length);
 
         for (const subreddit of subreddits) {
@@ -115,10 +148,31 @@ export class RedditService {
             new Map(allPosts.map(p => [p.id, p])).values()
         );
 
-        // Sort by score and take top results
-        const topPosts = uniquePosts
-            .sort((a, b) => b.score - a.score)
-            .slice(0, limit);
+        // If we have a custom query, boost relevance of matching posts
+        const scoredPosts = uniquePosts.map(post => {
+            let relevanceBoost = 0;
+            if (customQuery) {
+                const queryTerms = customQuery.toLowerCase().split(/\s+/);
+                const titleLower = post.title.toLowerCase();
+                const textLower = (post.selftext || "").toLowerCase();
+                
+                for (const term of queryTerms) {
+                    if (titleLower.includes(term)) relevanceBoost += 0.3;
+                    if (textLower.includes(term)) relevanceBoost += 0.1;
+                }
+            }
+            return { post, relevanceBoost };
+        });
+
+        // Sort by combined score (relevance + engagement)
+        const topPosts = scoredPosts
+            .sort((a, b) => {
+                const scoreA = (a.post.score / 50000) + a.relevanceBoost;
+                const scoreB = (b.post.score / 50000) + b.relevanceBoost;
+                return scoreB - scoreA;
+            })
+            .slice(0, limit)
+            .map(p => p.post);
 
         return topPosts.map(post => this.transformToTrendData(post, topic));
     }

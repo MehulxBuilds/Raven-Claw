@@ -43,7 +43,7 @@ export const scheduleCreatePost = catchAsync(
                     }
                 });
 
-                if (generationCheck?.generationCount !== 3) {
+                if (generationCheck?.generationCount !== 10) {
                     const create = getProducer("automate").publishPost({
                         id: postId,
                         userId: userId ?? "",

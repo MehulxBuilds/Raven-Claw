@@ -106,8 +106,12 @@ export class GoogleTrendsService {
         }
     }
 
-    async searchByTopic(topic: PreferredPostTopic, limit = 10): Promise<TrendData[]> {
+    async searchByTopic(topic: PreferredPostTopic, limit = 10, customQuery?: string): Promise<TrendData[]> {
         const keywords = TOPIC_TO_KEYWORDS[topic] || [topic.toLowerCase()];
+        // Include custom query terms in the search keywords for better relevance
+        const queryTerms = customQuery ? customQuery.toLowerCase().split(/\s+/).filter(t => t.length > 2) : [];
+        const allKeywords = [...new Set([...queryTerms, ...keywords])];
+        
         const allTrends: TrendData[] = [];
 
         try {
@@ -117,18 +121,58 @@ export class GoogleTrendsService {
             for (const trend of dailyTrends) {
                 if (!trend?.title?.query) continue;
 
-                const isRelevant = keywords.some(
-                    kw => trend.title.query.toLowerCase().includes(kw.toLowerCase())
+                const trendTitle = trend.title.query.toLowerCase();
+                
+                // Check if trend matches any keyword (topic or custom query)
+                const matchesKeyword = allKeywords.some(
+                    kw => trendTitle.includes(kw.toLowerCase())
                 );
+                
+                // Calculate relevance score based on custom query match
+                let relevanceScore = 0;
+                if (customQuery) {
+                    for (const term of queryTerms) {
+                        if (trendTitle.includes(term)) relevanceScore += 0.5;
+                    }
+                }
 
-                if (isRelevant || allTrends.length < limit / 2) {
+                if (matchesKeyword || relevanceScore > 0) {
+                    const trendData = this.transformToTrendData(trend, topic);
+                    // Boost score based on query relevance
+                    trendData.score = Math.min(trendData.score + relevanceScore, 1);
+                    allTrends.push(trendData);
+                } else if (allTrends.length < limit / 3) {
+                    // Only include non-matching trends if we have very few results
                     allTrends.push(this.transformToTrendData(trend, topic));
                 }
 
                 if (allTrends.length >= limit) break;
             }
 
-            // If we don't have enough, try related topics (but don't fail if it doesn't work)
+            // If we don't have enough and have a custom query, try related topics for the query
+            if (allTrends.length < limit && customQuery) {
+                const relatedTopics = await this.getRelatedTopics(customQuery);
+
+                for (const related of relatedTopics.slice(0, 5)) {
+                    if (allTrends.length >= limit) break;
+                    if (!related?.topic?.title && !related?.formattedValue) continue;
+
+                    allTrends.push({
+                        id: `gtrends-${related.topic?.mid || Date.now()}-${Math.random().toString(36).slice(2)}`,
+                        title: related.topic?.title || related.formattedValue || customQuery,
+                        description: `Trending topic related to ${customQuery}`,
+                        url: undefined,
+                        source: "GOOGLE_TRENDS",
+                        score: Math.min((related.value || 50) / 100 + 0.3, 1), // Boost query-related results
+                        engagementScore: related.value || 50,
+                        commentCount: 0,
+                        createdAt: new Date(),
+                        category: topic,
+                    });
+                }
+            }
+
+            // If we still don't have enough, try related topics for topic keywords
             if (allTrends.length < limit) {
                 for (const keyword of keywords.slice(0, 2)) {
                     const relatedTopics = await this.getRelatedTopics(keyword);
@@ -156,7 +200,10 @@ export class GoogleTrendsService {
             console.warn("Google Trends searchByTopic failed, returning empty results");
         }
 
-        return allTrends.slice(0, limit);
+        // Sort by score (which now includes relevance boost) before returning
+        return allTrends
+            .sort((a, b) => b.score - a.score)
+            .slice(0, limit);
     }
 
     private transformToTrendData(trend: GoogleTrendResult, category: PreferredPostTopic): TrendData {
