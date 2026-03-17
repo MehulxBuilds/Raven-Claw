@@ -115,6 +115,8 @@ const ThreadPage = () => {
         // TODO: Add topics
       };
 
+      toast.success("Post Generated Successfully")
+
       queryClient.setQueryData<PostData[]>(["posts"], (old) =>
         old ? [newPost, ...old] : [newPost]
       );
