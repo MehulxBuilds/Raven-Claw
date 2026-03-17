@@ -1,7 +1,7 @@
 import { kafka, TOPICS, getProducer } from "@repo/kafka";
-import { client } from "@repo/db";
+import { client, PostStatus } from "@repo/db";
 import { getPostCache } from "@repo/cache";
-import type { Consumer, EachBatchPayload, PostdumpMessage } from "@repo/kafka";
+import type { Consumer, EachBatchPayload, PostdumpMessage, PostWS } from "@repo/kafka";
 import { Decimal } from "@repo/db";
 
 export class PostDumpConsumer {
@@ -139,29 +139,61 @@ export class PostDumpConsumer {
                 return;
             }
 
+            const postCache = getPostCache();
+
+            // Format all posts first
+            const formattedPosts = newMessages.map((msg) => ({
+                id: msg.id,
+                content: msg.content,
+                engagementScore: msg.engagementScore ?? 0,
+                title: msg.title,
+                status: "PENDING" as PostStatus,
+                mediaPosts: msg.mediaPosts,
+                postTopics: msg.postTopics,
+                postMadeBy: msg.postMadeBy,
+                userId: msg.userId,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            }));
+
+            // Group posts by userId to avoid race conditions on same cache key
+            const postsByUser = new Map<string, typeof formattedPosts>();
+            for (const post of formattedPosts) {
+                const existing = postsByUser.get(post.userId) || [];
+                existing.push(post);
+                postsByUser.set(post.userId, existing);
+            }
+
+            // Produce to WebSocket (can be parallel) and cache per user (one call per user)
+            await Promise.all([
+                ...formattedPosts.map((post) => getProducer("postws").publishPost(post)),
+                ...Array.from(postsByUser.entries()).map(([userId, posts]) => {
+                    const feedCacheKey = `feed:user${userId}:initial`;
+                    return postCache.addPost(feedCacheKey, posts);
+                }),
+            ]);
+
             // Batch create AI posts
-            await client.$transaction(
-                newMessages.map((msg) =>
-                    client.aIPosts.create({
-                        data: {
-                            mediaPosts: msg.mediaPosts,
-                            postTopics: msg.postTopics,
-                            postMadeBy: msg.postMadeBy,
-                            title: msg.title,
-                            content: msg.content,
-                            source: msg.source,
-                            sourceUrl: msg.sourceUrl,
-                            trendScore: msg.trendScore ? new Decimal(msg.trendScore) : null,
-                            engagementScore: msg.engagementScore,
-                            commentCount: msg.commentCount,
-                            tokensConsumed: msg.tokensConsumed ? new Decimal(msg.tokensConsumed) : null,
-                            hash: msg.hash,
-                            status: "PENDING",
-                            userId: msg.userId,
-                        },
-                    })
-                )
-            );
+            await client.aIPosts.createMany({
+                data: newMessages.map((msg) => ({
+                    id: msg.id,
+                    mediaPosts: msg.mediaPosts,
+                    postTopics: msg.postTopics,
+                    postMadeBy: msg.postMadeBy,
+                    title: msg.title,
+                    content: msg.content,
+                    source: msg.source,
+                    sourceUrl: msg.sourceUrl,
+                    trendScore: msg.trendScore ? new Decimal(msg.trendScore) : null,
+                    engagementScore: msg.engagementScore,
+                    commentCount: msg.commentCount,
+                    tokensConsumed: msg.tokensConsumed ? new Decimal(msg.tokensConsumed) : null,
+                    hash: msg.hash,
+                    status: "PENDING" as PostStatus,
+                    userId: msg.userId,
+                })),
+                skipDuplicates: true, // 🔥 KEY FEATURE
+            });
 
             // Update user usage
             const userTokenUpdates = new Map<string, number>();
@@ -190,9 +222,8 @@ export class PostDumpConsumer {
             }
 
             // Invalidate feed cache for affected users
-            const postCache = getPostCache();
             const affectedUserIds = new Set(newMessages.map(m => m.userId));
-            
+
             for (const userId of affectedUserIds) {
                 const cacheKey = `feed:user${userId}:initial`;
                 await postCache.invalidatePost(cacheKey);

@@ -3,7 +3,8 @@ import {
     PostMadeByType,
     PostStatus,
     PreferredPostTopic,
-    Prisma
+    Prisma,
+    TrendSource
 } from "@repo/db";
 
 export interface PostData {
@@ -17,7 +18,8 @@ export interface PostData {
     content: Prisma.JsonValue;
     engagementScore: number | null;
     status: PostStatus;
-    topic: {
+    source?: TrendSource,
+    topic?: {
         query: string;
         category: PreferredPostTopic;
         trendScore: Prisma.Decimal | null;
