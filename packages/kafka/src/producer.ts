@@ -1,6 +1,6 @@
 import { kafka, TOPICS } from "./client";
 import type { Producer } from "kafkajs";
-import { MediaPost, PostMadeByType, PreferredPostTopic, TrendSource } from "@repo/db";
+import { MediaPost, PostMadeByType, PostStatus, PreferredPostTopic, Prisma, TrendSource } from "@repo/db";
 
 export interface PostAutomateMessage {
     id: string;
@@ -60,8 +60,28 @@ export interface PostdumpMessage {
     tokensConsumed?: number;
     hash?: string;
 }
+
 export interface PostCleanUpMessage {
     id: string, // postId -> which is going to be cleanedUp
+}
+
+export interface PostWS {
+    mediaPosts: MediaPost;
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    postTopics: PreferredPostTopic;
+    postMadeBy: PostMadeByType;
+    title: string;
+    content: Prisma.JsonValue;
+    engagementScore: number | null;
+    status: PostStatus;
+    userId: string,
+    topic?: {
+        query: string;
+        category: PreferredPostTopic;
+        trendScore: Prisma.Decimal
+    },
 }
 
 export class PostAutomateProducer {
@@ -248,6 +268,52 @@ export class PostCleanUpProducer {
         }
     }
 }
+export class PostWSProducer {
+    private producer: Producer;
+    private isConnected = false;
+
+    constructor() {
+        this.producer = kafka.producer();
+    }
+
+    async connect() {
+        if (!this.isConnected) {
+            await this.producer.connect();
+            this.isConnected = true;
+        }
+    }
+
+    async disconnect() {
+        if (this.isConnected) {
+            await this.producer.disconnect();
+            this.isConnected = false;
+        }
+    }
+
+    async publishPost(message: PostWS): Promise<string> {
+        await this.connect();
+
+        const topic = TOPICS.POST_WS;
+        const partitionKey = message.id;
+
+        try {
+            await this.producer.send({
+                topic,
+                messages: [
+                    {
+                        key: partitionKey,
+                        value: JSON.stringify(message),
+                    },
+                ],
+            });
+
+            return message?.id;
+        } catch (error) {
+            console.error("Failed to publish message:", error);
+            throw error;
+        }
+    }
+}
 
 // Singleton instance
 type ProducerMap = {
@@ -255,6 +321,7 @@ type ProducerMap = {
     raw: PostRawProducer;
     automate: PostAutomateProducer;
     cleanup: PostCleanUpProducer;
+    postws: PostWSProducer,
 };
 
 const producers: Partial<ProducerMap> = {};
@@ -275,6 +342,9 @@ export function getProducer<T extends keyof ProducerMap>(
                 break;
             case "cleanup":
                 producers[type] = new PostCleanUpProducer() as ProducerMap[T];
+                break;
+            case "postws":
+                producers[type] = new PostWSProducer() as ProducerMap[T];
                 break;
         }
     }

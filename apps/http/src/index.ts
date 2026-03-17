@@ -32,9 +32,6 @@ app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use(cookieParser());
 app.use(express.json());
 
-app.use("/api/v1/user", userRoutes);
-app.use("/api/v1/post", postRoutes);
-
 app.get("/api/me", async (req, res) => {
     const session = await auth.api.getSession({
         headers: fromNodeHeaders(req.headers),
@@ -42,9 +39,13 @@ app.get("/api/me", async (req, res) => {
     return res.json(session);
 });
 
-app.get("/", (req, res) => {
-    res.send("Hello World!");
-});
+app.get('/health', (req, res) => {
+    res.send("All Good!")
+})
+
+app.use("/api/v1/user", userRoutes);
+app.use("/api/v1/post", postRoutes);
+
 
 app.listen(5000, () => {
     console.log("Server is running on port 5000");

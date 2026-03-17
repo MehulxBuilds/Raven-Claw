@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@repo/ui";
 import { CheckCheck, Copy, Search } from "lucide-react";
 import { Hint } from "@repo/ui";
@@ -9,6 +9,8 @@ import ReloadButton from "@/components/dashboard/reload-button";
 import CreatePostsButton from "@/components/dashboard/create-post";
 import type { PostData } from "@/types";
 import { toast } from "sonner";
+import { useSocket } from "@/components/socket-provider";
+import { useQueryClient } from "@tanstack/react-query";
 
 const tabs = ["Generated", "Mannual"] as const;
 
@@ -43,6 +45,11 @@ const ThreadPage = () => {
   const { data: posts, isPending } = useGetFeedPost();
   const [copy, setCopy] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const { isConnected, socket } = useSocket();
+  const queryClient = useQueryClient();
+
+  console.log(isConnected, socket);
 
   const handleCopy = async (id: string, text: string) => {
     try {
@@ -88,6 +95,37 @@ const ThreadPage = () => {
   } as const;
 
   const visibleCards = threadCards[activeTab];
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = (data: any) => {
+      const newPost: PostData = {
+        mediaPosts: data.MediaPost,
+        id: data.id,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        postTopics: data.postTopics,
+        postMadeBy: data.postMadeBy,
+        title: data.title,
+        content: data.content,
+        engagementScore: data.engagementScore,
+        status: data.status,
+
+        // TODO: Add topics
+      };
+
+      queryClient.setQueryData<PostData[]>(["posts"], (old) =>
+        old ? [newPost, ...old] : [newPost]
+      );
+    };
+
+    socket.on("posts:new", handler);
+
+    return () => {
+      socket.off("posts:new", handler);
+    };
+  }, [socket, queryClient]);
 
   return (
     <>

@@ -4,7 +4,7 @@ import { server_env as env } from "@repo/env";
 export class PostCache {
     private redis: Redis;
     // 5 minutes TTL for cached Post
-    private readonly CACHE_TTL = 300;
+    private readonly CACHE_TTL = 30;
 
     constructor() {
         const redisUrl = env.REDIS_HOST;
@@ -20,11 +20,28 @@ export class PostCache {
 
     async addPost(key: string, messages: any[]): Promise<void> {
         if (!messages.length) return;
+
         try {
+            // 1. Get existing cache
+            const existing = await this.redis.get(key);
+            let existingPosts: any[] = existing ? JSON.parse(existing) : [];
+
+            // 2. Merge old + new
+            const combined = [...existingPosts, ...messages];
+
+            // 3. Deduplicate by `id`
+            const uniqueMap = new Map();
+            for (const post of combined) {
+                uniqueMap.set(post.id, post);
+            }
+
+            const uniquePosts = Array.from(uniqueMap.values());
+
+            // 4. Save back to cache
             await this.redis.setex(
                 key,
                 this.CACHE_TTL,
-                JSON.stringify(messages),
+                JSON.stringify(uniquePosts)
             );
         } catch (error) {
             console.error("[MessageCache] Failed to cache messages:", error);
@@ -71,4 +88,12 @@ export class PostCache {
             console.error("[PostCache] Failed to invalidate by pattern:", error);
         }
     }
+}
+
+let postCacheInstance: PostCache | null = null;
+export function getPostCache(): PostCache {
+    if (!postCacheInstance) {
+        postCacheInstance = new PostCache();
+    }
+    return postCacheInstance;
 }

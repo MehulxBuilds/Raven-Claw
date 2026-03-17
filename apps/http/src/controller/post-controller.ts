@@ -83,7 +83,7 @@ export const fetchPosts = catchAsync(
             feedpost = await postCache.getPost(feedCacheKey);
 
             if (!feedpost) {
-                const feedpost = await client.aIPosts.findMany({
+                feedpost = await client.aIPosts.findMany({
                     where: {
                         userId: userId,
                     },
@@ -96,15 +96,18 @@ export const fetchPosts = catchAsync(
                         postTopics: true,
                         postMadeBy: true,
                         engagementScore: true,
-                        topic: {
-                            select: {
-                                query: true,
-                                category: true,
-                                trendScore: true,
-                            }
-                        },
+                        // topic: {
+                        //     select: {
+                        //         query: true,
+                        //         category: true,
+                        //         trendScore: true,
+                        //     }
+                        // },
                         updatedAt: true,
                         createdAt: true,
+                    },
+                    orderBy: {
+                        createdAt: "desc", // newest first
                     },
                     take: 50,
                 });
