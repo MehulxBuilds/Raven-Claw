@@ -23,6 +23,7 @@
     "@repo/env": "workspace:*",
     "@repo/kafka": "workspace:*",
     "@repo/cache": "workspace:*",
+    "@repo/auth": "workspace:*",
     "better-auth": "^1.4.18",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

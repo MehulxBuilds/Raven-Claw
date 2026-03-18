@@ -36,6 +36,7 @@
     "apps/http": {
       "name": "http",
       "dependencies": {
+        "@repo/auth": "workspace:*",
         "@repo/cache": "workspace:*",
         "@repo/db": "workspace:*",
         "@repo/env": "workspace:*",
