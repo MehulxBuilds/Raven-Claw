@@ -13,7 +13,7 @@ import {
 } from "@repo/ui";
 import { Button } from "@repo/ui";
 import { Badge } from "@repo/ui";
-import { signOut } from "@repo/auth/client";
+import { signOut } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 
 // Types for the user data
