@@ -6,6 +6,7 @@ import { auth } from "@repo/auth";
 import { server_env as env } from "@repo/env"
 import userRoutes from "./routes/user-routes.js";
 import postRoutes from "./routes/post-routes.js";
+import subscriptionRoutes from "./routes/subscription-routes.js";
 
 const app = express();
 
@@ -45,7 +46,7 @@ app.get('/health', (req, res) => {
 
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/post", postRoutes);
-
+app.use("/api/v1/subscription", subscriptionRoutes);
 
 app.listen(5000, () => {
     console.log("Server is running on port 5000");

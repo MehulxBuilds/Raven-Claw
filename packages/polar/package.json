@@ -1,0 +1,29 @@
+{
+  "name": "@repo/polar",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "lint": "eslint src"
+  },
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@polar-sh/sdk": "^0.46.4",
+    "@repo/db": "workspace:*",
+    "@repo/env": "workspace:*",
+    "better-auth": "^1.4.18",
+    "dotenv": "^17.3.1",
+    "tsx": "^4.21.0"
+  }
+}

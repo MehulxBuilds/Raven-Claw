@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from '@repo/auth';
+import { auth } from '@/lib/auth';
 import { client } from '@repo/db';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -79,3 +79,4 @@ export const getDBUser = async () => {
 
     return result.user || [];
 };
+

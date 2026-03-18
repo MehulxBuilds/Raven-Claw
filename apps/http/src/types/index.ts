@@ -1,4 +1,4 @@
-import { MediaPost, PreferredPostTopic } from "@repo/db/data";
+import { MediaPost, PreferredPostTopic, SubscriptionStatusType, SubscriptionTierType } from "@repo/db/data";
 import { z } from "zod";
 
 export const MediaPostEnum = z.enum([
@@ -31,4 +31,16 @@ export const SchedulePostSchema = z.object({
     query: z.string().min(5).max(200).optional(),
     category: z.nativeEnum(PreferredPostTopic),
     mediaPosts: z.nativeEnum(MediaPost),
+});
+
+export const UpdatePolarCustomerSchema = z.object({
+    userId: z.string(),
+    polarCustomerId: z.string(),
+});
+
+export const UpdateUserTierSchema = z.object({
+    userId: z.string(),
+    tier: SubscriptionTierType,
+    status: SubscriptionStatusType,
+    polarSubscriptionId: z.string().optional(),
 });

@@ -4,6 +4,8 @@ import {
     PostStatus,
     PreferredPostTopic,
     Prisma,
+    SubscriptionStatusType,
+    SubscriptionTierType,
     TrendSource
 } from "@repo/db";
 
@@ -35,4 +37,16 @@ export interface CreatePostType {
     query: string,
     category: PreferredPostTopic,
     mediaPosts: MediaPost,
+};
+
+export interface UpdatePolarCustomerType {
+    userId: string;
+    polarCustomerId: string;
+};
+
+export interface UpdateUserTierType {
+    userId: string;
+    tier: SubscriptionTierType;
+    status: SubscriptionStatusType;
+    polarSubscriptionId?: string;
 };

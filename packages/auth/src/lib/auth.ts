@@ -11,6 +11,11 @@ export const auth = betterAuth({
     trustHost: true,                   // 👈 REQUIRED FOR DEV
     secret: env.BETTER_AUTH_SECRET,
 
+    advanced: {
+        cookiePrefix: "better-auth",
+        useSecureCookies: process.env.NODE_ENV === "production" || process.env.BETTER_AUTH_URL?.startsWith("https"),
+    },
+
     socialProviders: {
         github: {
             clientId: env.GITHUB_CLIENT_ID!,

@@ -1,6 +1,6 @@
 "use client";
 
-import { signOut } from '@repo/auth/client';
+import { signOut } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import React from 'react'
 

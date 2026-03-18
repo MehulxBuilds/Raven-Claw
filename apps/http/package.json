@@ -18,7 +18,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@repo/auth": "workspace:*",
+    "@repo/polar": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/env": "workspace:*",
     "@repo/kafka": "workspace:*",

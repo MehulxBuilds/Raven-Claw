@@ -1,4 +1,4 @@
-import { signIn } from '@repo/auth/client';
+import { signIn } from '@/lib/auth-client';
 
 export const authHandler = () => signIn.social({
     provider: 'github',
